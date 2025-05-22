@@ -1,0 +1,121 @@
+Introducción
+
+Una vez que hayas instalado Ubuntu y configurado tu usuario, así como registrado y preparado tu entorno de trabajo, 
+comienza creando la estructura inicial del proyecto con los siguientes comandos en la terminal. Esto te permitirá organizar 
+de forma ordenada las carpetas para el backend, datos, modelos, scripts, notebooks y documentación.
+
+`cd ~/mi_proyecto_dasometria`
+`mkdir -p app/api`
+`mkdir -p data/raw`
+`mkdir -p data/processed`
+`mkdir -p models`
+`mkdir -p notebooks`
+`mkdir -p scripts`
+`mkdir -p images`
+`mkdir -p docs`
+
+Crear y editar el archivo README.md para documentar el proyecto
+
+nano README.md
+
+Al abrir nano, copia y pega este contenido en el editor 
+
+Proyecto de Predicción Dasométricas con Inteligencia Artificial 🌳📐
+
+Este repositorio contiene una aplicación desarrollada en Ubuntu que utiliza técnicas de aprendizaje automático
+para predecir el Diámetro a la Altura del Pecho (DAP) y la altura total de árboles a partir de imágenes.
+El backend está construido con FastAPI y el modelo ha sido entrenado utilizando TensorFlow/Keras.
+
+📁 Estructura del Proyecto
+
+- `app/api`: backend en FastAPI
+- `data/raw`: datos sin procesar (imágenes, CSVs)
+- `data/processed`: datos preprocesados listos para entrenar
+- `models`: modelos entrenados
+- `scripts`: scripts de preprocesamiento y entrenamiento
+- `notebooks`: notebooks de análisis
+- `images`: gráficas y visualizaciones
+
+⚙️ Instalación del Entorno
+
+Sigue los pasos a continuación para instalar las dependencias y preparar el entorno de desarrollo:
+
+# Crear un entorno virtual
+python3 -m venv env
+
+# Activar el entorno virtual
+source env/bin/activate
+
+# Instalar las dependencias
+pip install -r requirements.txt
+
+📥 Datos
+
+El conjunto de datos (imágenes y archivo CSV con anotaciones) será proporcionado por el autor del proyecto.
+
+🚀 Estado del Proyecto
+    ✅ Backend funcional con FastAPI
+    ✅ Modelo de IA entrenado para predicción de DAP y altura
+    🔄 Integración con frontend en desarrollo
+    🔬 Mejora continua del dataset y del modelo
+📌 Requisitos
+    Python 3
+    Ubuntu 20.04 o superior
+    Git
+    pip
+📧 Contacto
+Rodrigo Pedraza, Andres Villalba y Paula acosta
+Estudiante de Ingeniería Forestal
+Universidad del Tolima
+📨 rrpedrazar@ut.edu.co
+
+Para guardar y salir de nano:
+
+- Presiona `Ctrl + O` (te pedirá confirmar el nombre del archivo, presiona Enter)  
+- Luego `Ctrl + X` para salir  
+
+---
+
+Con esto ya tienes el README.md creado y guardado.
+
+Crear el entorno virtual
+
+python3 -m venv env
+
+Activar el entorno virtual
+
+source env/bin/activate
+
+Nota: Al activar el entorno virtual, el prompt de la terminal cambiará y verás el nombre (env) al inicio, indicando que estás dentro del entorno virtual.
+
+
+Crear el archivo de dependencias requirements.txt
+
+    Ejecuta el comando para abrir el editor nano y crear el archivo:
+
+nano requirements.txt
+
+    Dentro del editor nano, copia y pega el siguiente contenido (requerimientos del proyecto):
+
+fastapi
+uvicorn
+numpy
+pandas
+tensorflow
+python-multipart
+scikit-learn
+opencv-python
+
+    Guarda y cierra el archivo nano:
+
+    Presiona Ctrl + O para guardar.
+
+    Presiona Enter para confirmar.
+
+    Presiona Ctrl + X para salir.
+
+Con el entorno virtual activado ((env) en el prompt), ejecuta el siguiente comando para instalar todas las librerías listadas en requirements.txt:
+
+`pip install -r requirements.txt`
+
+
