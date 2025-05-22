@@ -4,15 +4,15 @@ Una vez que hayas instalado Ubuntu y configurado tu usuario, así como registrad
 comienza creando la estructura inicial del proyecto con los siguientes comandos en la terminal. Esto te permitirá organizar 
 de forma ordenada las carpetas para el backend, datos, modelos, scripts, notebooks y documentación.
 
-`cd ~/mi_proyecto_dasometria`
-`mkdir -p app/api`
-`mkdir -p data/raw`
-`mkdir -p data/processed`
-`mkdir -p models`
-`mkdir -p notebooks`
-`mkdir -p scripts`
-`mkdir -p images`
-`mkdir -p docs`
+cd ~/mi_proyecto_dasometria
+mkdir -p app/api
+mkdir -p data/raw
+mkdir -p data/processed
+mkdir -p models
+mkdir -p notebooks
+mkdir -p scripts
+mkdir -p images
+mkdir -p docs
 
 Crear y editar el archivo README.md para documentar el proyecto
 
@@ -116,6 +116,307 @@ opencv-python
 
 Con el entorno virtual activado ((env) en el prompt), ejecuta el siguiente comando para instalar todas las librerías listadas en requirements.txt:
 
-`pip install -r requirements.txt`
+pip install -r requirements.txt
+
+PASO A PASO PARA COPIAR LAS IMÁGENES Y EL CSV A UBUNTU PARA HACER EL MODELO
+
+Copiar archivos desde Windows a Ubuntu (WSL)
+
+Abre otra terminal (CMD o PowerShell) y ejecuta el siguiente comando para copiar tus imágenes desde Windows a Ubuntu:
+
+wsl cp -r "/mnt/c/Users/Usuario/mi_proyecto_dasometria/images/." "/home/Usuario/mi_proyecto_dasometria/dataset/imagenes/"
+
+Recuerda modificar la ruta a la propia donde hayas puesto tus archivos descargados 
+
+Verifica que las imágenes están en Ubuntu
+
+En tu terminal de Ubuntu, ejecuta:
+
+ls dataset/imagenes
+
+Si todo está correcto, deberías ver algo como:
+
+arbol1.jpg  arbol2.jpg  arbol3.jpg
+
+MOVER EL CSV A UBUNTU
+
+Copiar el archivo CSV desde Windows
+
+Desde CMD o PowerShell (fuera de Ubuntu), escribe:
+
+wsl cp "/mnt/c/Users/Usuario/mi_proyecto_dasometria/dataset/etiquetas.csv" "/home/Usuario/mi_proyecto_das
+
+Recuerda modificar la ruta a la propia donde hayas puesto tus archivos descargados 
+
+Verificar que el CSV está en Ubuntu
+
+Desde Ubuntu:
+
+ls dataset/etiquetas.csv
+
+Si todo está bien, deberías ver:
+
+dataset/etiquetas.csv
+
+🤖 CONTINUACIÓN DEL ENTRENAMIENTO DEL MODELO
+✅ Paso: Crear el archivo de entrenamiento del modelo
+
+Desde la terminal de Ubuntu:
+
+nano entrenar_modelo.py
+
+Código completo de entrenar_modelo.py
+
+import os
+import pandas as pd
+import numpy as np
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from sklearn.model_selection import train_test_split
+
+# Ruta del CSV
+csv_path = 'dataset/etiquetas.csv'
+df = pd.read_csv(csv_path, delimiter=';')
+
+# Directorio de imágenes
+image_dir = 'dataset/imagenes'
+
+# Preprocesamiento de imágenes y etiquetas
+X = []
+y = []
+
+for index, row in df.iterrows():
+    image_path = os.path.join(image_dir, row['nombre_imagen'] + '.jpg')
+
+    if not os.path.exists(image_path):
+        print(f"Imagen no encontrada: {image_path}")
+        continue
+
+    # Cargar y procesar imagen
+    img = load_img(image_path, target_size=(224, 224))
+    img_array = img_to_array(img) / 255.0  # Normalización de píxeles
+    X.append(img_array)
+
+    try:
+        # Reemplazar comas por puntos y convertir a float
+        dap = float(str(row['dap_cm']).replace(',', '.'))
+        altura = float(str(row['altura_m']).replace(',', '.'))
+        y.append([dap, altura])
+    except ValueError as e:
+        print(f"Error en la fila {index}: {e}")
+
+# Convertir listas a arrays
+X = np.array(X)
+y = np.array(y)
+
+# Verificar que el número de imágenes y etiquetas coincide
+print(f"Total imágenes: {len(X)}, Total etiquetas: {len(y)}")
+
+# División entrenamiento / validación
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Definir arquitectura del modelo
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),
+    MaxPooling2D(2, 2),
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dense(2)  # Predicción directa de DAP y altura
+])
+
+# Compilar el modelo
+model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mean_squared_error'])
+
+# Entrenar el modelo
+model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=20, batch_size=8)
+
+# Guardar el modelo entrenado
+model.save('model_dasometry.h5')
+print("✅ Modelo guardado como model_dasometry.h5")
+
+Guarda y cierra el archivo nano:
+
+    Presiona Ctrl + O para guardar.
+
+    Presiona Enter para confirmar.
+
+    Presiona Ctrl + X para salir.
+
+Ejecutar el entrenamiento del modelo
+
+Una vez guardado el archivo entrenar_modelo.py, ejecuta este comando para entrenar el modelo:
+
+python3 entrenar_modelo.py
+
+🌐 CREACIÓN DEL SERVIDOR FASTAPI main.py
+✅ Paso: Crear archivo principal de la API
+
+nano main.py
+
+y dentro pon el siguiente código: 
+
+from fastapi import FastAPI, UploadFile, File, HTTPException
+import numpy as np
+import tensorflow as tf
+from io import BytesIO
+from PIL import Image, UnidentifiedImageError
+import os
+from pydantic import BaseModel
+
+# Inicializar FastAPI
+app = FastAPI(
+    title="API de Dasometría",
+    description="Predice DAP y altura a partir de una imagen de un árbol."
+)
+
+# Ruta al modelo entrenado
+MODEL_PATH = "model_dasometry.h5"
+model_loaded = False
+model = None
+
+# Intentar cargar el modelo
+if os.path.exists(MODEL_PATH):
+    try:
+        model = tf.keras.models.load_model(MODEL_PATH)
+        model_loaded = True
+        print("✅ Modelo cargado exitosamente")
+    except Exception as e:
+        print(f"❌ No se pudo cargar el modelo: {e}")
+        model_loaded = False
+
+# Función para procesar la imagen
+def process_image(image: Image.Image):
+    image = image.resize((224, 224))        # Redimensionar a tamaño esperado
+    image = np.array(image) / 255.0         # Normalizar imagen
+    image = np.expand_dims(image, axis=0)   # Añadir dimensión para batch
+    return image
+
+# Esquema de respuesta con Pydantic
+class PredictionResponse(BaseModel):
+    dap_cm: float
+    altura_m: float
+
+# Ruta de predicción
+@app.post("/predict/", summary="Predicción dasométrica", response_model=PredictionResponse)
+async def predict(file: UploadFile = File(...)):
+    # Verificar si el archivo es una imagen
+    try:
+        contents = await file.read()
+        image = Image.open(BytesIO(contents)).convert("RGB")
+    except UnidentifiedImageError:
+        raise HTTPException(status_code=400, detail="El archivo no es una imagen válida.")
+
+    # Preprocesar imagen
+    processed_image = process_image(image)
+
+    # Ejecutar predicción
+    if model_loaded:
+        prediction = model.predict(processed_image)
+        dap, altura = prediction[0]
+
+        # Redondear resultados
+        dap = round(float(dap), 2)
+        altura = round(float(altura), 2)
+
+        return PredictionResponse(dap_cm=dap, altura_m=altura)
+    else:
+        raise HTTPException(status_code=500, detail="El modelo no está cargado.")
 
 
+Presiona Ctrl + O para guardar.
+
+    Presiona Enter para confirmar.
+
+    Presiona Ctrl + X para salir.
+
+Desde el entorno virtual en tu terminal de Ubuntu:
+
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+Esto iniciará un servidor en http://127.0.0.1:8000
+
+Puedes ir a http://127.0.0.1:8000/docs para interactuar gráficamente con la API.
+
+Verificación local
+
+    Abre tu navegador en Ubuntu o Windows y accede a:
+
+http://127.0.0.1:8000/docs
+
+Allí verás la documentación interactiva de FastAPI.
+
+Puedes subir una imagen y ver la predicción en tiempo real.
+
+para detener el servidor dale ctrl + c 
+
+OPCIONAL: Compartir la API con una URL pública usando Ngrok
+
+En otro terminal (pestaña Ubuntu)
+
+1. Descargar Ngrok
+
+Ejecuta este comando en tu terminal para descargar el archivo .zip:
+
+wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+
+    📂 Esto descargará ngrok-stable-linux-amd64.zip en la carpeta actual (~).
+
+Descomprimir el archivo
+
+unzip ngrok-stable-linux-amd64.zip
+
+    Se extraerá el ejecutable ngrok.
+
+Mover Ngrok a una ubicación del sistema
+
+sudo mv ngrok /usr/local/bin/ngrok
+
+    Esto te permitirá usar ngrok desde cualquier parte del sistema.
+
+Verificar instalación
+
+ngrok version
+
+Deberías ver algo como:
+
+ngrok version 3.x.x
+
+
+Autenticar Ngrok con tu token
+
+    Regístrate (gratis) en: https://ngrok.com/signup
+
+    Obtén tu AuthToken desde el panel de usuario.
+
+Luego, en la terminal:
+
+ngrok config add-authtoken TU_AUTHTOKEN_AQUI
+
+    Reemplaza TU_AUTHTOKEN_AQUI por tu token real.
+
+en otra Terminal: Ejecuta Ngrok
+
+ngrok http 8000
+
+    Ngrok generará una URL pública como:
+
+https://1691-179-1-67-82.ngrok-free.app
+
+
+ Puntos clave
+
+    Ngrok redirige todo el tráfico al puerto 8000.
+
+    Para ir directamente a la documentación interactiva de tu API, agrega /docs:
+
+https://1691-179-1-67-82.ngrok-free.app/docs
+
+Y si quieres ir directamente al endpoint de predicción:
+
+https://1691-179-1-67-82.ngrok-free.app/docs#/default/predict_predict__post
+
+    🔒 Ngrok no puede redirigir directamente a rutas específicas ni fragmentos (#), eso debe hacerlo el usuario desde el navegador.
